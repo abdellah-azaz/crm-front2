@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import 'react-big-calendar/lib/css/react-big-calendar.css';
+@import 'react-calendar/dist/Calendar.css';
+
+/* Custom styles for the Mini-Calendar on the left sidebar to match the image */
+.react-calendar-mini-custom {
+    border: none !important;
+    font-family: inherit;
+    width: 100% !important;
+}
+
+.react-calendar-mini-custom .react-calendar__navigation {
+    margin-bottom: 0.5rem;
+}
+
+.react-calendar-mini-custom .react-calendar__navigation button {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4b5563; /* text-gray-700 */
+    border-radius: 0.5rem; /* rounded-lg */
+    padding: 0.5rem;
+    min-width: 44px;
+}
+
+.react-calendar-mini-custom .react-calendar__navigation button:hover {
+    background-color: #f3f4f6; /* hover:bg-gray-100 */
+}
+
+/* Remove text transform on day names, make them smaller */
+.react-calendar-mini-custom .react-calendar__month-view__weekdays__weekday {
+    font-size: 0.75rem; /* text-xs */
+    color: #9ca3af; /* text-gray-400 */
+    padding: 0.5em;
+    text-decoration: none;
+}
+.react-calendar-mini-custom .react-calendar__month-view__weekdays__weekday abbr {
+    text-decoration: none;
+}
+
+/* Style day tiles */
+.react-calendar-mini-custom .react-calendar__tile {
+    max-width: 100% !important;
+    padding: 0.25em 0.5em;
+    font-size: 0.875rem; /* text-sm */
+    color: #4b5563; /* text-gray-700 */
+    border-radius: 0.25rem; /* subtle rounding for the tile */
+    transition: background-color 0.15s;
+    height: 30px; /* fixed size for tile area */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.react-calendar-mini-custom .react-calendar__tile:enabled:hover {
+    background-color: #f3f4f6; /* hover:bg-gray-100 */
+}
+
+/* Day tiles from outside the current month should be greyed out */
+.react-calendar-mini-custom .react-calendar__month-view__days__day--neighboringMonth {
+    color: #d1d5db; /* text-gray-300 */
+}
+
+/* Fix: The user wants navigation buttons on one line (Prev/Next Month only) */
+
+/* Hide year/decade navigation buttons in the mini-calendar to match image */
+.react-calendar-mini-custom .react-calendar__navigation__prev2-button,
+.react-calendar-mini-custom .react-calendar__navigation__next2-button {
+    display: none;
+}
+
+/* Ensure the label takes up the necessary space and is styled correctly */
+.react-calendar-mini-custom .react-calendar__navigation__label {
+    flex-grow: 1;
+    text-align: center;
+    font-size: 1rem !important;
+}
+/* Highlight today's date (active selection) */
+.react-calendar-mini-custom .react-calendar__tile--active,
+.react-calendar-mini-custom .react-calendar__tile--hasActive:enabled:hover,
+.react-calendar-mini-custom .react-calendar__tile--hasActive:enabled:focus {
+    background-color: #3b82f6 !important; /* bg-blue-500 */
+    color: white !important;
+    border-radius: 9999px; /* Rounded pill for active date */
+}
+
+.react-calendar-mini-custom .react-calendar__tile--now {
+    background-color: transparent;
+    color: #3b82f6; /* Use blue for today's number, no background */
+    font-weight: 600;
+}
+.react-calendar-mini-custom .react-calendar__tile--now:enabled:hover,
+.react-calendar-mini-custom .react-calendar__tile--now:enabled:focus {
+    background-color: #eff6ff; /* hover:bg-blue-50 */
+}
+.react-calendar-mini-custom .react-calendar__month-view__days {
+    gap: 0.25rem;
+}
+
+/* Custom styles for react-big-calendar month view to match image */
+
+/* Day Headers (dim., lun., etc.) */
+.rbc-month-view .rbc-header {
+    font-weight: 700; /* bold */
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+    padding: 0.5rem 0.25rem;
+}
+
+/* Add explicit vertical borders to the month view cells to create a clearer "table" look */
+.rbc-month-view .rbc-row > div {
+    border-right: 1px solid #e5e7eb; /* border-gray-200 */
+}
+
+/* Remove the right border on the last cell of the row */
+.rbc-month-view .rbc-row > div:last-child {
+    border-right: none;
+}
+
+/* Month grid lines and cell padding/alignment */
+.rbc-month-view {
+    border: none; /* remove outer border, let the container handle it */
+}
+.rbc-month-row {
+    border-bottom: 1px solid #e5e7eb; /* border-gray-200 for rows */
+}
+
+/* Date number positioning (top-left) */
+.rbc-month-view .rbc-date-cell {
+    text-align: left;
+    font-weight: 500;
+    padding: 8px 10px; /* Adjust padding to match top-left feel */
+    position: relative;
+}
+
+/* Gray out dates from neighboring months */
+.rbc-month-view .rbc-off-range-row .rbc-date-cell {
+    color: #9ca3af; /* text-gray-400 */
+}
+
+/* Today's cell highlighting - should be subtle or transparent background */
+.rbc-month-view .rbc-today {
+    background-color: transparent; /* Remove default blue highlight for today */
+}
+.rbc-month-view .rbc-date-cell.rbc-now {
+    color: #3b82f6; /* Use blue text for today's date if needed */
+    font-weight: 700;
+}
+
+/* Styling for the selected day in the main calendar month view */
+.rbc-month-view .rbc-selected-day {
+    background-color: #eff6ff; /* bg-blue-50 - subtle highlight for the day cell */
+}
+
+/* Ensure the date number is also prominent and blue on the selected day */
+.rbc-month-view .rbc-selected-day .rbc-date-cell {
+    font-weight: 700 !important;
+    color: #3b82f6 !important; /* text-blue-500 */
+}
