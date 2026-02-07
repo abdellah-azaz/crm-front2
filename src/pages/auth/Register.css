@@ -1,0 +1,191 @@
+/* Styles pour la page d'inscription */
+
+/* Conteneur principal */
+.register-container {
+    display: flex;
+    justify-content: center; /* Centre horizontalement */
+    align-items: center; /* Centre verticalement */
+    min-height: 100vh; /* Prend toute la hauteur de l'écran */
+    width: 100%; /* Prend toute la largeur */
+    padding: 20px; /* Espacement interne */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Dégradé de fond */
+  }
+  
+  /* Carte d'inscription */
+  .register-card {
+    background: white; /* Fond blanc */
+    border-radius: 10px; /* Coins arrondis */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1); /* Ombre portée */
+    padding: 40px; /* Espacement interne généreux */
+    width: 100%; /* Largeur fluide */
+    max-width: 500px; /* Largeur maximale plus grande que login */
+  }
+  
+  /* Titre */
+  .register-card h2 {
+    text-align: center; /* Centre le texte */
+    margin-bottom: 30px; /* Espacement sous le titre */
+    color: #333; /* Couleur de texte */
+    font-size: 28px;
+  }
+  
+  /* Alertes d'erreur (réutilisé du login) */
+  .alert.error {
+    background-color: #fee;
+    border: 1px solid #f99;
+    color: #c00;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  /* Ligne de formulaire pour les champs côte à côte */
+  .form-row {
+    display: flex; /* Active Flexbox */
+    gap: 20px; /* Espacement entre les champs */
+    margin-bottom: 20px; /* Espacement sous la ligne */
+  }
+  
+  .form-row .form-group {
+    flex: 1; /* Chaque champ prend une part égale de l'espace */
+    min-width: 0; /* Important pour éviter le débordement */
+  }
+  
+  /* Groupes de formulaire individuels */
+  .form-group {
+    margin-bottom: 20px; /* Espacement entre les groupes */
+  }
+  
+  .form-group label {
+    display: block; /* Label sur une ligne séparée */
+    margin-bottom: 8px; /* Espacement sous le label */
+    color: #555;
+    font-weight: 500;
+  }
+  
+  .form-group input {
+    width: 100%; /* Prend toute la largeur disponible */
+    padding: 12px 15px; /* Espacement interne */
+    border: 2px solid #ddd; /* Bordure grise */
+    border-radius: 6px; /* Coins arrondis */
+    font-size: 16px;
+    transition: border-color 0.3s ease; /* Animation fluide */
+    box-sizing: border-box; /* Dimensions incluent padding */
+  }
+  
+  .form-group input:focus {
+    border-color: #667eea; /* Couleur bleue au focus */
+    outline: none; /* Supprime le contour par défaut */
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); /* Lueur bleue subtile */
+  }
+  
+  .form-group input:disabled {
+    background-color: #f5f5f5; /* Fond grisé */
+    cursor: not-allowed; /* Curseur désactivé */
+  }
+  
+  /* Bouton d'inscription */
+  .btn-primary {
+    width: 100%; /* Bouton pleine largeur */
+    padding: 14px; /* Espacement interne */
+    background: linear-gradient(to right, #667eea, #764ba2); /* Dégradé */
+    color: white; /* Texte blanc */
+    border: none; /* Pas de bordure */
+    border-radius: 6px; /* Coins arrondis */
+    font-size: 16px;
+    font-weight: 600; /* Texte en gras */
+    cursor: pointer; /* Curseur main */
+    transition: all 0.3s ease; /* Animation sur toutes les propriétés */
+    margin-top: 10px; /* Espacement au-dessus */
+  }
+  
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px); /* Légère élévation */
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); /* Ombre accentuée */
+  }
+  
+  .btn-primary:disabled {
+    opacity: 0.6; /* Transparence pour désactivé */
+    cursor: not-allowed; /* Curseur interdit */
+  }
+  
+  /* Pied de page */
+  .register-footer {
+    margin-top: 25px; /* Espacement au-dessus */
+    text-align: center; /* Centre le texte */
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .register-footer .link {
+    color: #667eea; /* Couleur du lien */
+    text-decoration: none; /* Pas de soulignement */
+    font-weight: 600;
+    transition: color 0.2s ease; /* Animation de couleur */
+  }
+  
+  .register-footer .link:hover {
+    color: #764ba2; /* Changement de couleur au survol */
+    text-decoration: underline; /* Soulignement au survol */
+  }
+  
+  /* Media Queries pour la responsivité */
+  
+  /* Tablettes */
+  @media (max-width: 768px) {
+    .register-card {
+      padding: 30px; /* Réduit l'espacement interne */
+      margin: 0 15px; /* Ajoute des marges latérales */
+    }
+    
+    .form-row {
+      flex-direction: column; /* Empile les champs verticalement */
+      gap: 15px; /* Réduit l'espacement */
+    }
+    
+    .register-card h2 {
+      font-size: 24px; /* Taille de titre réduite */
+    }
+  }
+  
+  /* Mobiles */
+  @media (max-width: 480px) {
+    .register-container {
+      padding: 10px; /* Réduit le padding du conteneur */
+    }
+    
+    .register-card {
+      padding: 25px 20px; /* Espacement réduit */
+      border-radius: 8px; /* Coins moins arrondis */
+    }
+    
+    .register-card h2 {
+      font-size: 22px; /* Titre plus petit */
+      margin-bottom: 20px; /* Moins d'espace sous le titre */
+    }
+    
+    .form-group {
+      margin-bottom: 15px; /* Espacement réduit entre les champs */
+    }
+    
+    .btn-primary {
+      padding: 12px; /* Bouton plus compact */
+    }
+  }
+  
+  /* Très petits écrans */
+  @media (max-width: 320px) {
+    .register-card {
+      padding: 20px 15px; /* Espacement minimal */
+    }
+    
+    .register-card h2 {
+      font-size: 20px; /* Taille minimale */
+    }
+    
+    .form-group input {
+      padding: 10px 12px; /* Champ plus compact */
+      font-size: 14px; /* Texte plus petit */
+    }
+  }
