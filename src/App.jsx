@@ -20,6 +20,7 @@ import EquipePage from './components/settings/EquipePage';
 import Pipeline from './pages/pipeline/Pipeline';
 import Entreprise from './pages/Entreprise/Entreprise';
 import { AuthProvider } from './contextes/AuthContext';
+import Register from './pages/auth/Register';
 
 // Component that handles the core application logic and routing
 const AppRoutes = () => {    
@@ -50,6 +51,8 @@ const AppRoutes = () => {
             <Route path="/conversations" element={<LayoutWrapper><ConversationHubPage /></LayoutWrapper>} /> {/* Conversation Hub */}
             <Route path="/team-chat" element={<LayoutWrapper><TeamChatPage /></LayoutWrapper>} /> {/* New Route */}
             <Route path="/knowledge-base" element={<LayoutWrapper><KnowledgeBaseDashboardPage /></LayoutWrapper>} /> {/* Added Knowledge Base Route */}
+            <Route path="/register" element={<Register />} /> {/* Added Calendar Route */}
+
             <Route path="/calendar" element={<LayoutWrapper><CalendarPage /></LayoutWrapper>} /> {/* Added Calendar Route */}
             <Route path="/landing-pages" element={<LayoutWrapper><LandingPageDashboard /></LayoutWrapper>} /> {/* Added Landing Pages Route */}
             <Route path="/entreprise" element={<LayoutWrapper><Entreprise /></LayoutWrapper>} />
