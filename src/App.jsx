@@ -19,6 +19,7 @@ import ProfilePage from './components/settings/ProfilePage';
 import EquipePage from './components/settings/EquipePage';
 import Pipeline from './pages/pipeline/Pipeline';
 import Entreprise from './pages/Entreprise/Entreprise';
+import { AuthProvider } from './contextes/AuthContext';
 
 // Component that handles the core application logic and routing
 const AppRoutes = () => {    
@@ -36,7 +37,7 @@ const AppRoutes = () => {
 <Route path="/equipe" element={<EquipePage />} />
             
             {/* Dashboard Routes (Unsecured) */}
-            <Route path="/" element={<LayoutWrapper><SetupOnboardingPage /></LayoutWrapper>} />
+            <Route path="/" element={<LoginPage/>} />
             <Route path="/setup" element={<LayoutWrapper><SetupOnboardingPage /></LayoutWrapper>} />
             <Route path="/dashboard" element={<LayoutWrapper><DashboardPage /></LayoutWrapper>} />
 
@@ -61,7 +62,8 @@ const AppRoutes = () => {
 function App() {
     return (
         <Router>
-            <AppRoutes />
+            <AuthProvider><AppRoutes /></AuthProvider>
+            
         </Router>
     );
 }

@@ -171,10 +171,10 @@ const LoginPage = () => {
     
     try {
       // Utilise ton AuthContext
-      const result = await login({ username: email, password });
+      const result = await login({ email, password });
       
       if (result.success) {
-        navigate('/'); // Redirection après succès
+        navigate('/setup'); // Redirection après succès
       } else {
         setError(result.error || 'Login failed');
       }

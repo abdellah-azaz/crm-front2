@@ -3,7 +3,7 @@ import axiosInstance from './axiosConfig';
 export const authAPI = {
   // Login - POST vers /login (votre endpoint Spring)
   login: async (credentials) => {
-    const response = await axiosInstance.post('/auth//login', credentials);
+    const response = await axiosInstance.post('/auth/login', credentials);
     
     // ✅ STOCKER les tokens dans le localStorage ici
     if (response.data.access_token && response.data.refresh_token) {
