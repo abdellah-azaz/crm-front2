@@ -21,7 +21,7 @@ export const authAPI = {
   
   // Register - Adaptez l'URL selon votre backend
   register: (userData) => 
-    axiosInstance.post('/users', userData),
+    axiosInstance.post('/auth/register', userData),
   
   // Logout (juste nettoyer le localStorage)
   logout: () => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contextes/AuthContext';
-import { Mail, Key, User, UserPlus, Lock, LogIn, Moon, Globe, HelpCircle } from 'lucide-react';
+import { Mail, Key, User, UserPlus, Lock, LogIn, Moon, Globe, HelpCircle, Eye, EyeOff } from 'lucide-react';
 import ahLogo from '../../logos/ahlogo.png';
 import './Register.css'
 
@@ -63,27 +63,87 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
     password: '',
     confirmPassword: '',
   });
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+    
+    // Effacer l'erreur de validation pour ce champ
+    if (validationErrors[name]) {
+      setValidationErrors({
+        ...validationErrors,
+        [name]: ''
+      });
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validation du mot de passe selon le DTO backend
+    if (formData.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    } else if (!/(?=.*[a-z])/.test(formData.password)) {
+      errors.password = 'Password must contain at least one lowercase letter';
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      errors.password = 'Password must contain at least one uppercase letter';
+    } else if (!/(?=.*\d)/.test(formData.password)) {
+      errors.password = 'Password must contain at least one number';
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    // Validation email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    // Validation des noms
+    if (!formData.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+    
+    if (!formData.lastName.trim()) {
+      errors.lastName = 'Last name is required';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      return onSubmit({ error: 'Passwords do not match' });
+    if (!validateForm()) {
+      return;
     }
     
-    if (formData.password.length < 6) {
-      return onSubmit({ error: 'Password must be at least 6 characters' });
-    }
-    
-    onSubmit({ data: formData });
+    onSubmit({ 
+      data: {
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      } 
+    });
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
@@ -99,7 +159,7 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-            First Name
+            First Name *
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -113,15 +173,18 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
               value={formData.firstName}
               onChange={handleChange}
               placeholder="John"
-              className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className={`pl-10 appearance-none block w-full px-3 py-2 border ${validationErrors.firstName ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
               disabled={loading}
             />
           </div>
+          {validationErrors.firstName && (
+            <p className="mt-1 text-xs text-red-600">{validationErrors.firstName}</p>
+          )}
         </div>
 
         <div>
           <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-            Last Name
+            Last Name *
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -135,17 +198,20 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
               value={formData.lastName}
               onChange={handleChange}
               placeholder="Doe"
-              className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className={`pl-10 appearance-none block w-full px-3 py-2 border ${validationErrors.lastName ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
               disabled={loading}
             />
           </div>
+          {validationErrors.lastName && (
+            <p className="mt-1 text-xs text-red-600">{validationErrors.lastName}</p>
+          )}
         </div>
       </div>
 
       {/* Email Field */}
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-          Email Address
+          Email Address *
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -160,16 +226,20 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
             value={formData.email}
             onChange={handleChange}
             placeholder="john.doe@example.com"
-            className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            className={`pl-10 appearance-none block w-full px-3 py-2 border ${validationErrors.email ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
             disabled={loading}
           />
         </div>
+        {validationErrors.email && (
+          <p className="mt-1 text-xs text-red-600">{validationErrors.email}</p>
+        )}
       </div>
 
       {/* Password Field */}
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-          Password
+          Password *
+          <span className="text-xs text-gray-500 ml-1">(8+ chars, upper, lower, number)</span>
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -178,21 +248,35 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
           <input
             id="password"
             name="password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             required
             value={formData.password}
             onChange={handleChange}
-            placeholder="At least 6 characters"
-            className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            placeholder="••••••••"
+            className={`pl-10 pr-10 appearance-none block w-full px-3 py-2 border ${validationErrors.password ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
             disabled={loading}
           />
+          <button
+            type="button"
+            onClick={togglePasswordVisibility}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          >
+            {showPassword ? (
+              <EyeOff size={16} className="text-gray-400 hover:text-gray-600" />
+            ) : (
+              <Eye size={16} className="text-gray-400 hover:text-gray-600" />
+            )}
+          </button>
         </div>
+        {validationErrors.password && (
+          <p className="mt-1 text-xs text-red-600">{validationErrors.password}</p>
+        )}
       </div>
 
       {/* Confirm Password Field */}
       <div>
         <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-          Confirm Password
+          Confirm Password *
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -201,15 +285,48 @@ const RegisterForm = ({ onSubmit, error, loading }) => {
           <input
             id="confirmPassword"
             name="confirmPassword"
-            type="password"
+            type={showConfirmPassword ? "text" : "password"}
             required
             value={formData.confirmPassword}
             onChange={handleChange}
-            placeholder="Confirm your password"
-            className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            placeholder="••••••••"
+            className={`pl-10 pr-10 appearance-none block w-full px-3 py-2 border ${validationErrors.confirmPassword ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
             disabled={loading}
           />
+          <button
+            type="button"
+            onClick={toggleConfirmPasswordVisibility}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          >
+            {showConfirmPassword ? (
+              <EyeOff size={16} className="text-gray-400 hover:text-gray-600" />
+            ) : (
+              <Eye size={16} className="text-gray-400 hover:text-gray-600" />
+            )}
+          </button>
         </div>
+        {validationErrors.confirmPassword && (
+          <p className="mt-1 text-xs text-red-600">{validationErrors.confirmPassword}</p>
+        )}
+      </div>
+
+      {/* Password Requirements */}
+      <div className="bg-blue-50 p-3 rounded-md">
+        <p className="text-xs font-medium text-blue-800 mb-1">Password must contain:</p>
+        <ul className="text-xs text-blue-700 space-y-1">
+          <li className={`flex items-center ${formData.password.length >= 8 ? 'text-green-600' : ''}`}>
+            <span className="mr-1">•</span> At least 8 characters
+          </li>
+          <li className={`flex items-center ${/(?=.*[a-z])/.test(formData.password) ? 'text-green-600' : ''}`}>
+            <span className="mr-1">•</span> One lowercase letter
+          </li>
+          <li className={`flex items-center ${/(?=.*[A-Z])/.test(formData.password) ? 'text-green-600' : ''}`}>
+            <span className="mr-1">•</span> One uppercase letter
+          </li>
+          <li className={`flex items-center ${/(?=.*\d)/.test(formData.password) ? 'text-green-600' : ''}`}>
+            <span className="mr-1">•</span> One number
+          </li>
+        </ul>
       </div>
 
       {/* Sign Up Button */}
@@ -255,11 +372,7 @@ const RegisterPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async ({ data, error: formError }) => {
-    if (formError) {
-      return setError(formError);
-    }
-
+  const handleRegister = async ({ data }) => {
     setError('');
     setLoading(true);
 
