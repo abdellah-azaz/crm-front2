@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Clock, MapPin, Users, AlignLeft, Calendar, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { createEvent } from '../../api/eventAPI';
 
 // Helper component for form inputs with icons
 const FormInputWithIcon = ({ Icon, placeholder, value, onChange, type = 'text', readOnly = false }) => (
@@ -76,14 +77,35 @@ const EventForm = ({ initialStart, initialEnd, onSave, onCancel }) => {
     const [title, setTitle] = useState('');
     const [start, setStart] = useState(initialStart || new Date());
     const [end, setEnd] = useState(initialEnd || new Date(new Date().getTime() + 60 * 60 * 1000)); // Default 1 hour later
-    const [location, setLocation] = useState('');
-    const [guests, setGuests] = useState('');
     const [description, setDescription] = useState('');
-    const [color, setColor] = useState('#60a5fa'); // Default to light blue
+    const [allDay, setAllDay] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        onSave({ title, start, end, location, guests, description, color });
+        setError(null);
+        setIsLoading(true);
+
+        // Format dates to ISO strings for the backend
+        const eventData = {
+            title,
+            description,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            allDay,
+        };
+
+        try {
+            const newEvent = await createEvent(eventData);
+            onSave(newEvent); // Call parent handler on success
+        } catch (err) {
+            console.error("Failed to create event:", err);
+            // Assuming error object structure: { message: '...' } or string
+            setError(err.message || 'Erreur lors de la création de l\'événement.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -125,15 +147,24 @@ const EventForm = ({ initialStart, initialEnd, onSave, onCancel }) => {
                     </div>
                 </div>
             </div>
+            
+            {/* All Day Toggle */}
+            <div className="flex items-center space-x-3 text-gray-500 py-2">
+                <Calendar size={20} className="flex-shrink-0" />
+                <label className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        checked={allDay}
+                        onChange={(e) => setAllDay(e.target.checked)}
+                        className="form-checkbox h-4 w-4 text-blue-500 rounded border-gray-300"
+                    />
+                    <span className="text-gray-700">Toute la journée</span>
+                </label>
+            </div>
 
-            {/* Location Input */}
-            <FormInputWithIcon Icon={MapPin} placeholder="Ajouter un lieu" value={location} onChange={(e) => setLocation(e.target.value)} />
-
-            {/* Guests Input */}
-            <FormInputWithIcon Icon={Users} placeholder="Ajouter des invités" value={guests} onChange={(e) => setGuests(e.target.value)} />
 
             {/* Description Input */}
-            <div className="flex items-start space-x-3 text-gray-500 border-b border-gray-200 py-2 mb-6">
+            <div className="flex items-start space-x-3 text-gray-500 border-b border-gray-200 py-2 mb-6 mt-4">
                 <AlignLeft size={20} className="flex-shrink-0 mt-3" />
                 <textarea
                     placeholder="Ajouter une description"
@@ -144,34 +175,23 @@ const EventForm = ({ initialStart, initialEnd, onSave, onCancel }) => {
                 />
             </div>
 
-            {/* Color Picker */}
-            <h4 className="text-gray-600 font-semibold mb-2">Couleur de l'événement</h4>
-            <div className="flex space-x-3 mb-8">
-                {['#60a5fa', '#34d399', '#fcd34d', '#fb7185'].map(c => (
-                    <div
-                        key={c}
-                        className={`w-6 h-6 rounded-full cursor-pointer transition-shadow`}
-                        style={{ backgroundColor: c, border: color === c ? '3px solid #1e40af' : '3px solid transparent' }}
-                        onClick={() => setColor(c)}
-                        title={c}
-                    ></div>
-                ))}
-            </div>
-
             {/* Footer Buttons */}
+            {error && <p className="text-red-500 text-sm mb-4">Erreur: {error}</p>}
             <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200 -mx-6 px-6">
                 <button
                     type="button"
                     className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
                     onClick={onCancel}
+                    disabled={isLoading}
                 >
                     Annuler
                 </button>
                 <button
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow-md"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50"
+                    disabled={isLoading}
                 >
-                    Sauvegarder
+                    {isLoading ? 'Sauvegarde...' : 'Sauvegarder'}
                 </button>
             </div>
         </form>
