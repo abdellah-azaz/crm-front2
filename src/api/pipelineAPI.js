@@ -117,18 +117,65 @@ const pipelineAPI = {
     }
   },
 
+
   /**
-   * Supprime un stage
-   * @param {string} pipelineId - ID du pipeline
-   * @param {string} stageId - ID du stage
-   * @returns {Promise<Object>} Pipeline mis à jour
-   */
-  deleteStage: async (pipelineId, stageId) => {
+ * Ajoute un stage à un pipeline
+ * @param {string} pipelineName - Nom du pipeline
+ * @param {string} stageName - Nom du stage
+ * @returns {Promise<Object>} Pipeline mis à jour
+ */
+addStage: async (pipelineName, stageName) => {
+  try {
+    // Encoder le nom du pipeline pour gérer les caractères spéciaux
+    const encodedPipelineName = encodeURIComponent(pipelineName);
+    
+    const response = await axiosInstance.post(
+      `/pipelines/${encodedPipelineName}/stages`,
+      { stageName }  // Envoyer comme objet avec la propriété stageName
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Error adding stage "${stageName}" to pipeline "${pipelineName}":`, error);
+    throw error;
+  }
+},
+
+/**
+ * Ajoute un lead à un stage d'un pipeline
+ * @param {string} pipelineName - Nom du pipeline
+ * @param {string} stageName - Nom du stage
+ * @param {Object} leadData - Données du lead à ajouter
+ * @returns {Promise<Object>} Pipeline mis à jour
+ */
+addLeadToStage: async (pipelineName, stageName, leadData) => {
+  try {
+    // Encoder les noms pour gérer les caractères spéciaux
+    const encodedPipelineName = encodeURIComponent(pipelineName);
+    const encodedStageName = encodeURIComponent(stageName);
+    
+    const response = await axiosInstance.post(
+      `/pipelines/${encodedPipelineName}/stages/${encodedStageName}/leads`,
+      leadData
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Error adding lead to stage "${stageName}" in pipeline "${pipelineName}":`, error);
+    throw error;
+  }
+},
+
+  deleteStage: async (pipelineName, stageName) => {
     try {
-      const response = await axiosInstance.delete(`/pipelines/${pipelineId}/stages/${stageId}`);
+      // Encoder les paramètres pour gérer les caractères spéciaux
+      const encodedPipelineName = encodeURIComponent(pipelineName);
+      const encodedStageName = encodeURIComponent(stageName);
+      
+      const response = await axiosInstance.delete(
+        `/pipelines/${encodedPipelineName}/stages/${encodedStageName}`
+      );
       return response.data;
     } catch (error) {
-      console.error(`Error deleting stage ${stageId} from pipeline ${pipelineId}:`, error);
+      console.error(`Error deleting stage "${stageName}" from pipeline "${pipelineName}":`, error);
       throw error;
     }
   },
