@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
-import MiniCalendarComponent from 'react-calendar'; // For the sidebar calendar
-import { format, parse, startOfWeek, getDay, isSameDay, addDays } from 'date-fns';
+import MiniCalendarComponent from 'react-calendar';
+import { format, parse, startOfWeek, getDay, isSameDay, addDays, isSameHour, startOfDay, endOfDay, differenceInMinutes } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Modal from '../../components/ui/Modal';
 import EventForm from '../../components/forms/EventForm';
 import AgendaListView from '../../components/AgendaListView';
-import { Plus, ListOrdered, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CornerDownRight } from 'lucide-react';
+import { Plus, ListOrdered, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { getAllEvents, createEvent } from '../../api/eventAPI'; // Import des fonctions API
 
 const locales = {
   'fr': fr,
@@ -16,50 +17,78 @@ const locales = {
 const localizer = dateFnsLocalizer({
   format,
   parse,
-  startOfWeek: (date, options) => startOfWeek(date, { ...options, weekStartsOn: 1 }), // Monday start of week for France
+  startOfWeek: (date, options) => startOfWeek(date, { ...options, weekStartsOn: 1 }),
   getDay,
   locales,
 });
 
-// Placeholder events
-const initialEvents = [
-  {
-    title: 'Client Meeting',
-    start: new Date(2026, 1, 4, 10, 0), // Note: The year/month are arbitrary but match the image's context (Feb 2026)
-    end: new Date(2026, 1, 4, 11, 30),
-    allDay: false,
-    resource: 'Travail'
-  },
-  {
-    title: 'Weekly Review',
-    start: new Date(2026, 1, 5, 14, 0),
-    end: new Date(2026, 1, 5, 15, 0),
-    allDay: false,
-    resource: 'Travail'
-  }
-];
+// SUPPRIMER initialEvents ou garder pour les tests seulement
+// const initialEvents = []; // Tableau vide pour production
 
-// --- Custom Weekly Grid View Component (to replace the default week view) ---
+// --- Custom Weekly Grid View Component avec événements ---
 const WeeklyGridView = ({ currentDate, events }) => {
-    // Determine the start of the week for the given date (Monday)
     const weekStart = startOfWeek(currentDate, { locale: fr, weekStartsOn: 1 });
-    
-    // Generate dates for the 7 days of the week
     const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+    const hours = Array.from({ length: 24 }, (_, i) => i); // [0, 1, 2, ... 23]
     
-    // Generate hours from 00:00 to 23:00
-    const hours = Array.from({ length: 24 }, (_, i) => 
-        format(new Date().setHours(i, 0, 0, 0), 'HH:mm')
-    );
+    // Hauteur fixe pour chaque ligne d'heure (64px)
+    const HOUR_HEIGHT = 64;
+    
+    // Group events by day
+    const eventsByDay = useMemo(() => {
+        const grouped = {};
+        weekDates.forEach((date, dayIndex) => {
+            grouped[dayIndex] = events.filter(event => 
+                isSameDay(event.start, date) || 
+                (event.start < endOfDay(date) && event.end > startOfDay(date))
+            );
+        });
+        return grouped;
+    }, [events, weekDates]);
+
+    // Calculate event position and height CORRECTEMENT
+    const getEventStyle = (event, dayIndex) => {
+        const eventStart = new Date(event.start);
+        const eventEnd = new Date(event.end);
+        
+        // Pour les événements "toute la journée", les afficher en haut
+        if (event.allDay) {
+            return {
+                top: '5px',
+                height: '30px',
+                left: `${(1 + dayIndex) * (100 / 8)}%`,
+                width: `${100 / 8}%`,
+                backgroundColor: event.color || '#3B82F6',
+                opacity: 0.8
+            };
+        }
+        
+        // Calculer la position top basée sur l'heure de début
+        const startHour = eventStart.getHours();
+        const startMinutes = eventStart.getMinutes();
+        
+        // Position top en pixels (chaque heure = 64px, chaque minute = 64/60 ≈ 1.0667px)
+        const top = (startHour * HOUR_HEIGHT) + (startMinutes * (HOUR_HEIGHT / 60));
+        
+        // Calculer la hauteur basée sur la durée
+        const durationMinutes = differenceInMinutes(eventEnd, eventStart);
+        const height = Math.max(durationMinutes * (HOUR_HEIGHT / 60), 30); // min height 30px
+        
+        return {
+            top: `${top + 5}px`, // +5 pour un petit espace
+            height: `${height}px`,
+            left: `${(1 + dayIndex) * (100 / 8)}%`,
+            width: `${100 / 8}%`,
+            backgroundColor: event.color || '#3B82F6',
+            opacity: 1
+        };
+    };
 
     return (
         <div className="relative overflow-auto h-full max-h-full">
             {/* Weekday Headers */}
             <div className="sticky top-0 bg-white grid grid-cols-8 border-b border-gray-200 shadow-sm z-10">
-                {/* Corner Cell for Time */}
                 <div className="p-2 border-r border-gray-200 text-center text-sm font-medium text-gray-500"></div>
-                
-                {/* Day Headers */}
                 {weekDates.map((date, index) => (
                     <div 
                         key={index} 
@@ -68,7 +97,7 @@ const WeeklyGridView = ({ currentDate, events }) => {
                         }`}
                     >
                         <span className="block text-xs text-gray-400">{format(date, 'dd', { locale: fr })}</span>
-                        <span className="block font-semibold">{format(date, 'EEE', { locale: fr })}.</span>
+                        <span className="block font-semibold">{format(date, 'EEE', { locale: fr })}</span>
                     </div>
                 ))}
             </div>
@@ -77,111 +106,131 @@ const WeeklyGridView = ({ currentDate, events }) => {
             <div className="grid grid-cols-8">
                 {/* Time Column */}
                 <div className="col-span-1 sticky left-0 bg-white border-r border-gray-200 z-10">
-                    {hours.map((time, index) => (
+                    {hours.map((hour, index) => (
                         <div key={index} className="h-16 relative border-b border-gray-100">
-                            <span className="absolute top-[-10px] right-1 text-xs text-gray-500">{time}</span>
+                            <span className="absolute top-[-10px] right-1 text-xs text-gray-500">
+                                {format(new Date().setHours(hour, 0, 0, 0), 'HH:mm')}
+                            </span>
                         </div>
                     ))}
                 </div>
 
-                {/* Grid Cells (7 Days) */}
-                <div className="col-span-7 grid grid-cols-7">
-                    {/* The time cells need to be layered over the 7 day columns, one row per hour */}
-                    {hours.map((_, hourIndex) => (
+                {/* Grid Cells (7 Days) - Conteneur avec hauteur fixe */}
+                <div className="col-span-7 grid grid-cols-7 relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+                    {/* Les cellules de la grille */}
+                    {hours.map((hour, hourIndex) => (
                         <React.Fragment key={hourIndex}>
                             {weekDates.map((date, dayIndex) => (
                                 <div 
                                     key={`${hourIndex}-${dayIndex}`} 
-                                    className={`h-16 border-b border-gray-100 ${dayIndex < 6 ? 'border-r border-gray-100' : ''} transition-colors hover:bg-gray-50`}
-                                >
-                                    {/* Event rendering logic would be complex here, using placeholders */}
-                                </div>
+                                    className={`absolute border-b border-gray-100 ${dayIndex < 6 ? 'border-r border-gray-100' : ''} transition-colors hover:bg-gray-50`}
+                                    style={{
+                                        top: `${hourIndex * HOUR_HEIGHT}px`,
+                                        left: `${(dayIndex) * (100/7)}%`,
+                                        width: `${100/7}%`,
+                                        height: `${HOUR_HEIGHT}px`
+                                    }}
+                                    data-date={format(date, 'yyyy-MM-dd')}
+                                    data-hour={hour}
+                                />
                             ))}
                         </React.Fragment>
                     ))}
                 </div>
                 
-                {/* Placeholder events in cells (very simplified, actual events need complex positioning) */}
-                {events.map((event, index) => {
-                    const eventDate = event.start;
-                    const eventHour = eventDate.getHours();
-                    const dayIndex = getDay(eventDate) === 0 ? 6 : getDay(eventDate) - 1; // 0=Sunday -> 6, 1=Monday -> 0
-                    
-                    if (weekDates.some(date => isSameDay(date, eventDate))) {
-                        return (
-                            <div
-                                key={index}
-                                className="absolute bg-green-200 text-green-800 rounded-lg p-1 text-xs overflow-hidden"
-                                style={{
-                                    left: `${(1 + dayIndex) * (100 / 8)}%`, // 1/8 is time column, then dayIndex
-                                    top: `${eventHour * 64}px`, // 64px is h-16 (16*4 = 64)
-                                    width: `${100 / 8}%`,
-                                    height: `${(event.end.getHours() - event.start.getHours()) * 64}px`,
-                                    transform: 'translateY(10px)', // adjust for time label
-                                }}
-                            >
-                                {event.title}
-                            </div>
-                        );
-                    }
-                    return null;
-                })}
+                {/* Render events - ABSOLUTE par rapport au conteneur parent */}
+                <div className="absolute top-0 left-0 w-full" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+                    {weekDates.map((date, dayIndex) => (
+                        <React.Fragment key={`events-day-${dayIndex}`}>
+                            {eventsByDay[dayIndex]?.map((event, eventIndex) => {
+                                const eventStyle = getEventStyle(event, dayIndex);
+                                
+                                // Format time for display
+                                const startTime = format(event.start, 'HH:mm');
+                                const endTime = format(event.end, 'HH:mm');
+                                const timeDisplay = event.allDay ? 'Toute la journée' : `${startTime} - ${endTime}`;
+                                
+                                return (
+                                    <div
+                                        key={event.id || eventIndex}
+                                        className="absolute rounded-md p-2 text-xs overflow-hidden shadow-sm border-l-4"
+                                        style={{
+                                            ...eventStyle,
+                                            borderLeftColor: event.color || '#3B82F6',
+                                            zIndex: 20,
+                                            boxSizing: 'border-box'
+                                        }}
+                                    >
+                                        <div className="font-semibold text-white truncate">
+                                            {event.title}
+                                        </div>
+                                        <div className="text-white/80 text-[10px] truncate mt-1">
+                                            {timeDisplay}
+                                        </div>
+                                        {event.resource && (
+                                            <div className="text-white/60 text-[10px] truncate">
+                                                {event.resource}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </div>
             </div>
         </div>
     );
 };
-// -------------------------------------------------------------------------
 
-
-// Custom Toolbar to match the image's design (simplified)
+// Custom Toolbar
 const CustomToolbar = (toolbar) => {
-    const goToBack = () => {
-        toolbar.onNavigate('PREV');
-    };
-    const goToNext = () => {
-        toolbar.onNavigate('NEXT');
-    };
-    const goToCurrent = () => {
-        toolbar.onNavigate('TODAY');
-    };
+    const goToBack = () => toolbar.onNavigate('PREV');
+    const goToNext = () => toolbar.onNavigate('NEXT');
+    const goToCurrent = () => toolbar.onNavigate('TODAY');
 
-    // Determine the view display. react-big-calendar's toolbar.label doesn't perfectly match the image format.
-    // We construct a simplified date range string.
-    let dateRange = format(toolbar.date, 'd', { locale: fr }); 
+    let dateRange = format(toolbar.date, 'd MMMM yyyy', { locale: fr }); 
     if (toolbar.view === 'week') {
-      // Approximate the date range label for the week view (e.g., 4 – 10 févr.)
       const weekStart = startOfWeek(toolbar.date, { locale: fr, weekStartsOn: 1 });
       const weekEnd = addDays(weekStart, 6);
-
       const startDay = format(weekStart, 'd', { locale: fr });
       const endDay = format(weekEnd, 'd', { locale: fr });
-      const month = format(weekEnd, 'MMM.', { locale: fr });
-      dateRange = `${startDay} – ${endDay} ${month}`;
-    } else {
-        dateRange = toolbar.label; // Fallback for month/day view default label
+      const month = format(weekEnd, 'MMMM', { locale: fr });
+      const year = format(weekEnd, 'yyyy', { locale: fr });
+      dateRange = `${startDay} – ${endDay} ${month} ${year}`;
+    } else if (toolbar.view === 'month') {
+        dateRange = format(toolbar.date, 'MMMM yyyy', { locale: fr });
     }
 
-
     return (
-        <div className="flex items-center justify-between p-3 border-b border-gray-200">
-            {/* Left Controls */}
+        <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-2">
-                <button className="p-1 rounded-full text-gray-600 border hover:bg-gray-100" onClick={goToBack}><ChevronLeft size={20} /></button>
-                <button className="p-1 rounded-full text-gray-600 border hover:bg-gray-100" onClick={goToNext}><ChevronRight size={20} /></button>
-                <button className="px-3 py-1 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100" onClick={goToCurrent}>Aujourd'hui</button>
+                <button className="p-1.5 rounded-lg text-gray-600 border border-gray-300 hover:bg-gray-100 transition-colors" onClick={goToBack}>
+                    <ChevronLeft size={20} />
+                </button>
+                <button className="p-1.5 rounded-lg text-gray-600 border border-gray-300 hover:bg-gray-100 transition-colors" onClick={goToNext}>
+                    <ChevronRight size={20} />
+                </button>
+                <button className="px-4 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors" onClick={goToCurrent}>
+                    Aujourd'hui
+                </button>
                 <span className="text-xl font-semibold text-gray-800 ml-4">{dateRange}</span>
             </div>
 
-            {/* Right Controls - View Toggles */}
-            <div className="flex space-x-1 border border-blue-400 rounded-lg p-0.5">
-                <button className={`px-3 py-1 text-sm font-medium rounded-lg ${toolbar.view === 'month' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-100'}`} onClick={() => toolbar.onView('month')}>Mois</button>
-                <button className={`px-3 py-1 text-sm font-medium rounded-lg ${toolbar.view === 'week' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-100'}`} onClick={() => toolbar.onView('week')}>Semaine</button>
-                <button className={`px-3 py-1 text-sm font-medium rounded-lg ${toolbar.view === 'day' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-100'}`} onClick={() => toolbar.onView('day')}>Jour</button>
+            <div className="flex space-x-1 border border-blue-400 rounded-lg p-0.5 bg-white">
+                <button className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${toolbar.view === 'month' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-100'}`} onClick={() => toolbar.onView('month')}>
+                    Mois
+                </button>
+                <button className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${toolbar.view === 'week' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-100'}`} onClick={() => toolbar.onView('week')}>
+                    Semaine
+                </button>
+                <button className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${toolbar.view === 'day' ? 'bg-blue-500 text-white' : 'text-blue-600 hover:bg-blue-100'}`} onClick={() => toolbar.onView('day')}>
+                    Jour
+                </button>
             </div>
         </div>
     );
 };
-
 
 const MiniCalendarComponentWrapper = ({ selectedDate, onDateChange }) => {
     return (
@@ -189,162 +238,348 @@ const MiniCalendarComponentWrapper = ({ selectedDate, onDateChange }) => {
             onChange={onDateChange}
             value={selectedDate}
             locale="fr"
-            className="w-full react-calendar-mini-custom mt-4" // Moved margin here, Custom class for styling
-            calendarType="iso8601" // Start week on Monday
+            className="w-full react-calendar-mini-custom mt-4 border border-gray-200 rounded-lg p-2"
+            calendarType="iso8601"
+            tileClassName={({ date, view }) => {
+                if (view === 'month' && isSameDay(date, new Date())) {
+                    return 'bg-blue-500 text-white rounded-full';
+                }
+                if (view === 'month' && isSameDay(date, selectedDate)) {
+                    return 'bg-blue-100 text-blue-700 rounded-full';
+                }
+            }}
         />
     );
 };
 
-
 /**
- * CalendarPage component, integrated with react-big-calendar.
+ * CalendarPage component avec chargement depuis le backend
  */
 const CalendarPage = () => {
-    const [events, setEvents] = useState(initialEvents);
-    const [miniCalendarDate, setMiniCalendarDate] = useState(new Date()); // State for the mini-calendar
-    const [view, setView] = useState('week'); // State for the main calendar view (month, week, day)
-    const [isAgendaView, setIsAgendaView] = useState(false); // Toggle between Calendar grid and Agenda list
+    const [events, setEvents] = useState([]); // Vide au départ - chargement depuis le backend
+    const [miniCalendarDate, setMiniCalendarDate] = useState(new Date());
+    const [view, setView] = useState('week');
+    const [isAgendaView, setIsAgendaView] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [initialEventTimes, setInitialEventTimes] = useState({ start: null, end: null }); // Used for pre-filling the modal form
-    const today = new Date();
-    // Set a default date close to the image date (Feb 2026, though the year doesn't matter much)
-    const defaultDate = new Date(today.getFullYear(), 1, 4); 
+    const [formKey, setFormKey] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Function to handle new event creation on slot selection (Add event functionality)
+    // Charger les événements depuis le backend au montage du composant
+    useEffect(() => {
+        loadEvents();
+    }, []);
+
+    const loadEvents = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const eventsData = await getAllEvents(); // Appel au backend
+            
+            // Convertir les strings ISO en objets Date et ajouter des couleurs
+            const formattedEvents = eventsData.map((event, index) => {
+                const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
+                const color = colors[index % colors.length];
+                
+                return {
+                    ...event,
+                    start: new Date(event.start),
+                    end: new Date(event.end),
+                    color: color,
+                    resource: event.resource || 'Personnel'
+                };
+            });
+            
+            setEvents(formattedEvents);
+        } catch (err) {
+            console.error('Erreur chargement événements:', err);
+            setError('Impossible de charger les événements depuis le serveur. Veuillez réessayer.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fonction pour ouvrir le formulaire
+    const openEventForm = (selectedStart = null, selectedEnd = null) => {
+        const now = new Date();
+        const start = selectedStart || now;
+        const end = selectedEnd || new Date(start.getTime() + 60 * 60 * 1000);
+        
+        // Forcer un re-render du formulaire
+        setFormKey(prev => prev + 1);
+        setIsModalOpen(true);
+    };
+
+    // Gestion du clic sur un créneau
+    const handleSelectSlot = ({ start, end }) => {
+        openEventForm(start, end);
+    };
+
+    // Bouton rapide d'ajout
+    const handleQuickAdd = () => {
+        const now = new Date();
+        const start = new Date(miniCalendarDate);
+        start.setHours(now.getHours() + 1, 0, 0, 0);
+        openEventForm(start);
+    };
+
+    // Sauvegarde d'un événement VERS LE BACKEND
+    const handleSaveEvent = async (newEventData) => {
+        try {
+            // Envoyer l'événement au backend
+            const savedEvent = await createEvent(newEventData);
+            
+            // Ajouter la couleur et convertir les dates
+            const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
+            const color = colors[events.length % colors.length];
+            
+            const eventWithDates = {
+                ...savedEvent,
+                start: new Date(savedEvent.start),
+                end: new Date(savedEvent.end),
+                color: color,
+                resource: savedEvent.resource || 'Personnel'
+            };
+            
+            // Ajouter le nouvel événement à la liste
+            setEvents(prevEvents => [...prevEvents, eventWithDates]);
+            setIsModalOpen(false);
+        } catch (err) {
+            console.error('Erreur création événement:', err);
+            alert(err.message || 'Erreur lors de la création de l\'événement');
+        }
+    };
+
+    // Gestion du clic sur un événement
+    const handleSelectEvent = (event) => {
+        if (window.confirm(`Voulez-vous modifier l'événement "${event.title}" ?`)) {
+            openEventForm(event.start, event.end);
+        }
+    };
+
     const dayPropGetter = (date) => {
         if (isSameDay(date, miniCalendarDate)) {
             return {
-                className: 'rbc-selected-day',
+                className: 'rbc-selected-day bg-blue-50',
+                style: {
+                    backgroundColor: '#EFF6FF',
+                    borderColor: '#3B82F6'
+                }
             };
         }
         return {};
     };
 
-    // Function to handle new event creation on slot selection (Add event functionality)
-    const handleSelectSlot = ({ start, end }) => {
-        setInitialEventTimes({ start, end });
-        setIsModalOpen(true);
+    // Custom event style pour react-big-calendar
+    const eventStyleGetter = (event) => {
+        const backgroundColor = event.color || '#3B82F6';
+        return {
+            style: {
+                backgroundColor,
+                borderRadius: '4px',
+                opacity: 0.9,
+                color: 'white',
+                border: 'none',
+                padding: '2px 4px'
+            }
+        };
     };
 
-    // Helper to open the modal for quick add from sidebar
-    const handleQuickAdd = () => {
-        // Use the current miniCalendarDate as the start date for the new event, default time
-        const start = new Date(miniCalendarDate);
-        start.setHours(new Date().getHours() + 1, 0, 0, 0); // Start 1 hour from now
-        const end = new Date(start.getTime() + 60 * 60 * 1000); // End 1 hour after start
-        
-        setInitialEventTimes({ start, end });
-        setIsModalOpen(true);
-    };
-    
-    // Handler for saving the event from the form
-    const handleSaveEvent = (newEventData) => {
-        setEvents(prevEvents => [
-            ...prevEvents,
-            newEventData
-        ]);
-        setIsModalOpen(false);
-    };
-    
-    return (<>
-        <div className="p-6 h-full flex flex-col">
-            {/* Header section (Title and View Toggles) */}
-            <div className="flex items-center justify-between pb-4">
-                <h1 className="text-2xl font-bold text-gray-900">Calendriers</h1>
-                <div className="flex space-x-2">
-                    <button
-                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${!isAgendaView ? 'text-white bg-blue-500 hover:bg-blue-600' : 'text-gray-700 border border-gray-300 hover:bg-gray-100'}`}
-                        onClick={() => setIsAgendaView(false)}
-                    >
-                        <CalendarIcon size={16} className="mr-2" />
-                        Calendrier
-                    </button>
-                    <button
-                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isAgendaView ? 'text-white bg-blue-500 hover:bg-blue-600' : 'text-gray-700 border border-gray-300 hover:bg-gray-100'}`}
-                        onClick={() => setIsAgendaView(true)}
-                    >
-                        <ListOrdered size={16} className="mr-2" />
-                        Agenda
-                    </button>
+    // Afficher un loader pendant le chargement
+    if (loading) {
+        return (
+            <div className="h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
+                    <p className="text-gray-600">Chargement des événements...</p>
                 </div>
             </div>
+        );
+    }
 
-            {/* Main Content: Sidebar and Calendar */}
-            <div className="flex flex-1 min-h-0">
-                {/* Left Sidebar (25% width) - Matches image layout */}
-                <div className="w-1/4 p-4 flex flex-col bg-white border border-gray-200 rounded-xl shadow-lg mr-4">
-                    <button
-                        className="flex items-center justify-center w-full px-4 py-3 text-lg font-semibold text-white bg-blue-500 rounded-lg shadow-md hover:bg-blue-600 transition-colors"
-                        onClick={handleQuickAdd}
-                     >
-                        <Plus size={20} className="mr-2" />
-                        Ajouter un événement rapide
-                    </button>
-                    
-                     <MiniCalendarComponentWrapper selectedDate={miniCalendarDate} onDateChange={setMiniCalendarDate} />
-                    
+    // Afficher un message d'erreur si le chargement échoue
+    if (error) {
+        return (
+            <div className="h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center max-w-md">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                        <p className="text-red-600 font-medium mb-2">{error}</p>
+                        <button
+                            onClick={loadEvents}
+                            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                            Réessayer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="h-screen flex flex-col bg-gray-50">
+            <div className="p-6 flex-1 overflow-hidden">
+                {/* Header section */}
+                <div className="flex items-center justify-between pb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Calendriers</h1>
+                        <p className="text-gray-600 text-sm mt-1">
+                            Gérer vos événements et rendez-vous
+                        </p>
+                    </div>
+                    <div className="flex space-x-2">
+                        <button
+                            className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${!isAgendaView ? 'text-white bg-blue-500 hover:bg-blue-600' : 'text-gray-700 border border-gray-300 hover:bg-gray-100'}`}
+                            onClick={() => setIsAgendaView(false)}
+                        >
+                            <CalendarIcon size={16} className="mr-2" />
+                            Calendrier
+                        </button>
+                        <button
+                            className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isAgendaView ? 'text-white bg-blue-500 hover:bg-blue-600' : 'text-gray-700 border border-gray-300 hover:bg-gray-100'}`}
+                            onClick={() => setIsAgendaView(true)}
+                        >
+                            <ListOrdered size={16} className="mr-2" />
+                            Agenda
+                        </button>
+                    </div>
                 </div>
 
-                {/* Right Calendar View (75% width) - Conditional rendering based on view state */}
-                <div className="w-3/4 flex-1 p-0 relative bg-white border border-gray-200 rounded-xl shadow-lg">
-                    {isAgendaView ? (
-                        <AgendaListView events={events} currentDate={miniCalendarDate} />
-                    ) : (
-                        <>
-                            {view === 'week' ? (
-                                <WeeklyGridView currentDate={miniCalendarDate} events={events} />
-                            ) : (
-                                <Calendar
-                                    localizer={localizer}
-                                    events={events}
-                                    startAccessor="start"
-                                    endAccessor="end"
-                                    style={{ height: '100%' }}
-                                    popup={true}
-                                    view={view} // Controlled view
-                                    onView={setView} // View state updater
-                                    culture="fr" // Use French culture
-                                    date={miniCalendarDate} // Controlled date from mini-calendar selection
-                                    onNavigate={(newDate) => setMiniCalendarDate(newDate)} // Keep mini-calendar in sync with main navigation
-                                    // Enables adding new events by clicking on empty slots
-                                    selectable={true}
-                                    onSelectSlot={handleSelectSlot}
-                                    onSelectEvent={(event) => window.alert(event.title)}
-                                    dayPropGetter={dayPropGetter} // Apply class to selected day
-                                    components={{
-                                        toolbar: CustomToolbar, // Use custom toolbar
-                                    }}
-                                />
-                            )}
-                            
-                            {/* Floating Add Button (FAB) - Bottom Right */}
+                {/* Main Content: Sidebar and Calendar */}
+                <div className="flex flex-1 min-h-0 gap-4">
+                    {/* Left Sidebar */}
+                    <div className="w-1/4 flex flex-col">
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4">
                             <button
-                                className="absolute bottom-5 right-5 w-14 h-14 flex items-center justify-center bg-blue-500 rounded-full text-white shadow-xl hover:bg-blue-600 transition-colors z-10"
+                                className="flex items-center justify-center w-full px-4 py-3 text-lg font-semibold text-white bg-blue-500 rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
                                 onClick={handleQuickAdd}
                             >
-                                <Plus size={24} />
+                                <Plus size={20} className="mr-2" />
+                                Nouvel événement
                             </button>
-                        </>
-                    )}
+                        </div>
+                        
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 flex-1">
+                            <h3 className="font-semibold text-gray-700 mb-3">Mini calendrier</h3>
+                            <MiniCalendarComponentWrapper 
+                                selectedDate={miniCalendarDate} 
+                                onDateChange={setMiniCalendarDate} 
+                            />
+                            
+                            {/* Liste des événements à venir */}
+                            <div className="mt-6">
+                                <h3 className="font-semibold text-gray-700 mb-3">Événements à venir ({events.filter(e => e.start >= new Date()).length})</h3>
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {events
+                                        .filter(event => event.start >= new Date())
+                                        .sort((a, b) => a.start - b.start)
+                                        .slice(0, 5)
+                                        .map(event => (
+                                            <div 
+                                                key={event.id} 
+                                                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                                                onClick={() => handleSelectEvent(event)}
+                                            >
+                                                <div className="flex items-center">
+                                                    <div 
+                                                        className="w-3 h-3 rounded-full mr-2" 
+                                                        style={{ backgroundColor: event.color }}
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium text-sm text-gray-900 truncate">
+                                                            {event.title}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500">
+                                                            {format(event.start, 'EEEE d MMMM HH:mm', { locale: fr })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    }
+                                    {events.filter(e => e.start >= new Date()).length === 0 && (
+                                        <p className="text-gray-500 text-sm text-center py-4">
+                                            Aucun événement à venir
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Calendar View */}
+                    <div className="w-3/4 flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden relative">
+                        {isAgendaView ? (
+                            <AgendaListView events={events} currentDate={miniCalendarDate} />
+                        ) : (
+                            <>
+                                {view === 'week' ? (
+                                    <WeeklyGridView currentDate={miniCalendarDate} events={events} />
+                                ) : (
+                                    <Calendar
+                                        localizer={localizer}
+                                        events={events}
+                                        startAccessor="start"
+                                        endAccessor="end"
+                                        style={{ height: '100%' }}
+                                        popup={true}
+                                        view={view}
+                                        onView={setView}
+                                        culture="fr"
+                                        date={miniCalendarDate}
+                                        onNavigate={(newDate) => setMiniCalendarDate(newDate)}
+                                        selectable={true}
+                                        onSelectSlot={handleSelectSlot}
+                                        onSelectEvent={handleSelectEvent}
+                                        dayPropGetter={dayPropGetter}
+                                        eventPropGetter={eventStyleGetter}
+                                        components={{
+                                            toolbar: CustomToolbar,
+                                        }}
+                                        messages={{
+                                            today: "Aujourd'hui",
+                                            previous: "Précédent",
+                                            next: "Suivant",
+                                            month: "Mois",
+                                            week: "Semaine",
+                                            day: "Jour",
+                                            agenda: "Agenda",
+                                            date: "Date",
+                                            time: "Heure",
+                                            event: "Événement",
+                                            noEventsInRange: "Aucun événement dans cette période"
+                                        }}
+                                    />
+                                )}
+                                
+                                {/* Floating Add Button */}
+                                <button
+                                    className="absolute bottom-6 right-6 w-14 h-14 flex items-center justify-center bg-blue-500 rounded-full text-white shadow-lg hover:bg-blue-600 transition-colors z-10"
+                                    onClick={handleQuickAdd}
+                                >
+                                    <Plus size={24} />
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
+            
+            {/* Event Creation Modal */}
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title="Nouvel événement"
+                size="md"
+            >
+                <EventForm
+                    key={formKey}
+                    onSave={handleSaveEvent}
+                    onCancel={() => setIsModalOpen(false)}
+                />
+            </Modal>
         </div>
-        
-        {/* Event Creation Modal */}
-        <Modal
-            isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            title="Nouvel événement"
-            size="sm"
-        >
-            <EventForm
-                initialStart={initialEventTimes.start}
-                initialEnd={initialEventTimes.end}
-                onSave={handleSaveEvent}
-                onCancel={() => setIsModalOpen(false)}
-            />
-        </Modal>
-    </>);
+    );
 };
 
 export default CalendarPage;
