@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Moon, Bell, ChevronDown } from 'lucide-react';
 import ProfileDropdown from '../ui/ProfileDropdown';
+import { useTranslation } from 'react-i18next';
 
 /**
  * HorizontalNavbar component.
@@ -9,8 +10,9 @@ import ProfileDropdown from '../ui/ProfileDropdown';
  * @param {boolean} isCollapsed - The collapsed state of the Vertical Navbar.
  */
 const HorizontalNavbar = ({ isCollapsed }) => {
+  const { t, i18n } = useTranslation();
   // Removed marginLeftClass and style={{ left: ... }} to ensure full width.
-  const [activeLang, setActiveLang] = useState('English');
+  const [activeLang, setActiveLang] = useState(i18n.language.startsWith('fr') ? 'French' : 'English');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null); // Ref is used on the container div
 
@@ -30,13 +32,13 @@ const HorizontalNavbar = ({ isCollapsed }) => {
 
 
   const languages = [
-    { code: 'Arabic', label: 'Arabic' },
-    { code: 'English', label: 'English' },
-    { code: 'French', label: 'French' },
+    { code: 'en', label: 'English' },
+    { code: 'fr', label: 'French' },
   ];
-  const handleLangChange = (lang) => {
-    setActiveLang(lang);
-    console.log(`Language changed to: ${lang}`);
+  const handleLangChange = (langCode, label) => {
+    setActiveLang(label);
+    i18n.changeLanguage(langCode);
+    console.log(`Language changed to: ${langCode}`);
   };
 
   return (
@@ -56,22 +58,22 @@ const HorizontalNavbar = ({ isCollapsed }) => {
             <button
               key={lang.code}
               className={`px-3 py-1 rounded-md transition-colors duration-150 ${
-                activeLang === lang.code
+                activeLang === lang.label
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'hover:bg-white'
               }`}
-              onClick={() => handleLangChange(lang.code)}
+              onClick={() => handleLangChange(lang.code, lang.label)}
             >
               {lang.label}
             </button>
           ))}
         </div>
         
-        <button className="p-2 rounded-full hover:bg-gray-100 transition duration-150" title="Dark Mode">
+        <button className="p-2 rounded-full hover:bg-gray-100 transition duration-150" title={t('dark_mode')}>
           <Moon size={18} />
         </button>
         
-        <button className="p-2 rounded-full hover:bg-gray-100 transition duration-150 relative" title="Notifications">
+        <button className="p-2 rounded-full hover:bg-gray-100 transition duration-150 relative" title={t('notifications')}>
             <Bell size={18} />
             {/* Notification dot placeholder */}
             <span className="absolute top-1 right-1 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>

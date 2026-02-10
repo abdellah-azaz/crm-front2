@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronsLeft,
   Search,
@@ -18,22 +19,22 @@ import {
 import ahLogo from '../../logos/ahlogo.png';
 
 // Navigation data now includes paths for router linking
-const navLinksData = [
-  { name: 'Setup', icon: Grid, path: '/setup' },
-  { name: 'Dashboard', icon: BarChart2, path: '/dashboard' },
-  { name: 'Knowledge Base', icon: Brain, path: '/knowledge-base' }, // Added Knowledge Base button
-  { name: 'Calendar', icon: Calendar, path: '/calendar' }, // Added Calendar button
-  { name: 'Facebook Ads', icon: Facebook, path: '/facebookads' }, // Use /facebookads as per App.jsx
-  { name: 'Conversations', icon: MessageSquare, path: '/conversations' },
-  { name: 'Team Chat', icon: Users, path: '/team-chat' },
-  { name: 'Apps', icon: Briefcase, path: '/apps' },
-  { name: 'Pipelines', icon: HardHat, path: '/pipelines' },
-  { name: 'Clients', icon: Users, path: '/clients' },
-  { name: 'Landing Pages', icon: Monitor, path: '/landing-pages' },
+const getNavLinksData = (t) => [
+  { name: t('setup'), icon: Grid, path: '/setup' },
+  { name: t('dashboard'), icon: BarChart2, path: '/dashboard' },
+  { name: t('knowledge_base'), icon: Brain, path: '/knowledge-base' },
+  { name: t('calendar'), icon: Calendar, path: '/calendar' },
+  { name: t('facebook_ads'), icon: Facebook, path: '/facebookads' },
+  { name: t('conversations'), icon: MessageSquare, path: '/conversations' },
+  { name: t('team_chat'), icon: Users, path: '/team-chat' },
+  { name: t('apps'), icon: Briefcase, path: '/apps' },
+  { name: t('pipeline'), icon: HardHat, path: '/pipelines' },
+  { name: t('clients'), icon: Users, path: '/clients' },
+  { name: t('landing_pages'), icon: Monitor, path: '/landing-pages' },
   { type: 'separator', name: '' },
-  { name: 'Profil d\'entreprise', icon: Briefcase, path: '/entreprise' },
-  { name: 'Mon Profile', icon: Users, path: '/profile' },
-  { name: 'Mon Équipe', icon: Users, path: '/equipe' }
+  { name: t('enterprise'), icon: Briefcase, path: '/entreprise' },
+  { name: t('profile'), icon: Users, path: '/profile' },
+  { name: t('team'), icon: Users, path: '/equipe' }
 ];
 
 /**
@@ -42,6 +43,8 @@ const navLinksData = [
  * @param {function} toggleCollapse - Function to toggle the collapsed state.
  */
 const VerticalNavbar = ({ isCollapsed, toggleCollapse }) => {
+  const { t } = useTranslation();
+  const navLinksData = getNavLinksData(t);
   const location = useLocation();
   const widthClass = isCollapsed ? 'w-20' : 'w-64';
   const logoSize = isCollapsed ? 'w-8 h-8' : 'w-6 h-6';
@@ -100,7 +103,7 @@ const VerticalNavbar = ({ isCollapsed, toggleCollapse }) => {
             <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t('search')}
               className="w-full pl-10 pr-2 py-1 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500"
             />
             <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 p-1 border border-gray-300 rounded">
@@ -114,7 +117,7 @@ const VerticalNavbar = ({ isCollapsed, toggleCollapse }) => {
       <div className="flex-1 overflow-y-auto pt-2 pb-4">
         {!isCollapsed && (
           <div className="px-4 mb-2">
-            <span className="text-xs font-semibold text-gray-500 tracking-wider uppercase">MAIN</span>
+            <span className="text-xs font-semibold text-gray-500 tracking-wider uppercase">{t('main')}</span>
           </div>
         )}
         <nav className="space-y-1">

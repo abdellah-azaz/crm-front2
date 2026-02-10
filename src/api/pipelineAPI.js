@@ -147,6 +147,37 @@ addStage: async (pipelineName, stageName) => {
  * @param {Object} leadData - Données du lead à ajouter
  * @returns {Promise<Object>} Pipeline mis à jour
  */
+
+/**
+ * Déplace un lead d'un stage vers un autre dans un pipeline
+ * @param {string} pipelineName - Nom du pipeline
+ * @param {string} leadEmail - Email du lead à déplacer
+ * @param {string} fromStageName - Nom du stage source
+ * @param {string} toStageName - Nom du stage destination
+ * @returns {Promise<Object>} Pipeline mis à jour
+ */
+moveLeadBetweenStages: async (pipelineName, leadEmail, fromStageName, toStageName) => {
+  try {
+    // Encoder le nom du pipeline pour gérer les caractères spéciaux
+    const encodedPipelineName = encodeURIComponent(pipelineName);
+    
+    const response = await axiosInstance.patch(
+      `/pipelines/${encodedPipelineName}/move-lead`,
+      { 
+        leadEmail, 
+        fromStageName, 
+        toStageName 
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Error moving lead "${leadEmail}" from "${fromStageName}" to "${toStageName}" in pipeline "${pipelineName}":`, error);
+    throw error;
+  }
+},
+
+
+
 addLeadToStage: async (pipelineName, stageName, leadData) => {
   try {
     // Encoder les noms pour gérer les caractères spéciaux

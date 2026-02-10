@@ -7,13 +7,12 @@ import Modal from '../../components/ui/Modal';
 import EventForm from '../../components/forms/EventForm';
 import AgendaListView from '../../components/AgendaListView';
 import { Plus, ListOrdered, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { getAllEvents, createEvent } from '../../api/eventAPI'; // Import des fonctions API
+import { getAllEvents, createEvent } from '../../api/eventAPI';
 
 const locales = {
   'fr': fr,
 }
 
-// Setup localizer for react-big-calendar
 const localizer = dateFnsLocalizer({
   format,
   parse,
@@ -22,19 +21,14 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-// SUPPRIMER initialEvents ou garder pour les tests seulement
-// const initialEvents = []; // Tableau vide pour production
-
-// --- Custom Weekly Grid View Component avec événements ---
 const WeeklyGridView = ({ currentDate, events }) => {
     const weekStart = startOfWeek(currentDate, { locale: fr, weekStartsOn: 1 });
     const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-    const hours = Array.from({ length: 24 }, (_, i) => i); // [0, 1, 2, ... 23]
+    const hours = Array.from({ length: 24 }, (_, i) => i);
     
-    // Hauteur fixe pour chaque ligne d'heure (64px)
     const HOUR_HEIGHT = 64;
+    const TOTAL_HEIGHT = 24 * HOUR_HEIGHT;
     
-    // Group events by day
     const eventsByDay = useMemo(() => {
         const grouped = {};
         weekDates.forEach((date, dayIndex) => {
@@ -46,12 +40,10 @@ const WeeklyGridView = ({ currentDate, events }) => {
         return grouped;
     }, [events, weekDates]);
 
-    // Calculate event position and height CORRECTEMENT
     const getEventStyle = (event, dayIndex) => {
         const eventStart = new Date(event.start);
         const eventEnd = new Date(event.end);
         
-        // Pour les événements "toute la journée", les afficher en haut
         if (event.allDay) {
             return {
                 top: '5px',
@@ -63,30 +55,24 @@ const WeeklyGridView = ({ currentDate, events }) => {
             };
         }
         
-        // Calculer la position top basée sur l'heure de début
         const startHour = eventStart.getHours();
         const startMinutes = eventStart.getMinutes();
-        
-        // Position top en pixels (chaque heure = 64px, chaque minute = 64/60 ≈ 1.0667px)
         const top = (startHour * HOUR_HEIGHT) + (startMinutes * (HOUR_HEIGHT / 60));
-        
-        // Calculer la hauteur basée sur la durée
         const durationMinutes = differenceInMinutes(eventEnd, eventStart);
-        const height = Math.max(durationMinutes * (HOUR_HEIGHT / 60), 30); // min height 30px
+        const height = Math.max(durationMinutes * (HOUR_HEIGHT / 60), 30);
         
         return {
-            top: `${top + 5}px`, // +5 pour un petit espace
-            height: `${height}px`,
+            top: `${top + 5}px`,
+            height: `fit-content`,
             left: `${(1 + dayIndex) * (100 / 8)}%`,
-            width: `${100 / 8}%`,
+            width: `${100 / 8}%`,   
             backgroundColor: event.color || '#3B82F6',
             opacity: 1
         };
     };
 
     return (
-        <div className="relative overflow-auto h-full max-h-full">
-            {/* Weekday Headers */}
+        <div className="relative overflow-auto h-full max-h-full" style={{ minHeight: `${24 * HOUR_HEIGHT}px` , height: `${24 * HOUR_HEIGHT}px` }}>
             <div className="sticky top-0 bg-white grid grid-cols-8 border-b border-gray-200 shadow-sm z-10">
                 <div className="p-2 border-r border-gray-200 text-center text-sm font-medium text-gray-500"></div>
                 {weekDates.map((date, index) => (
@@ -102,10 +88,8 @@ const WeeklyGridView = ({ currentDate, events }) => {
                 ))}
             </div>
 
-            {/* Time Rows and Grid Cells */}
-            <div className="grid grid-cols-8">
-                {/* Time Column */}
-                <div className="col-span-1 sticky left-0 bg-white border-r border-gray-200 z-10">
+            <div className="grid grid-cols-8" style={{ minHeight: `${TOTAL_HEIGHT}px` }}>
+                <div className="col-span-1 sticky left-0 bg-white border-r border-gray-200 z-10" style={{ minHeight: `${TOTAL_HEIGHT}px` }}>
                     {hours.map((hour, index) => (
                         <div key={index} className="h-16 relative border-b border-gray-100">
                             <span className="absolute top-[-10px] right-1 text-xs text-gray-500">
@@ -115,9 +99,10 @@ const WeeklyGridView = ({ currentDate, events }) => {
                     ))}
                 </div>
 
-                {/* Grid Cells (7 Days) - Conteneur avec hauteur fixe */}
-                <div className="col-span-7 grid grid-cols-7 relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
-                    {/* Les cellules de la grille */}
+                <div className="col-span-7 grid grid-cols-7 relative" style={{ 
+                    height: `${TOTAL_HEIGHT}px`,
+                    minHeight: `${TOTAL_HEIGHT}px`
+                }}>
                     {hours.map((hour, hourIndex) => (
                         <React.Fragment key={hourIndex}>
                             {weekDates.map((date, dayIndex) => (
@@ -138,14 +123,14 @@ const WeeklyGridView = ({ currentDate, events }) => {
                     ))}
                 </div>
                 
-                {/* Render events - ABSOLUTE par rapport au conteneur parent */}
-                <div className="absolute top-0 left-0 w-full" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+                <div className="absolute top-0 left-0 w-full" style={{ 
+                    height: `${TOTAL_HEIGHT}px`,
+                    minHeight: `${TOTAL_HEIGHT}px`
+                }}>
                     {weekDates.map((date, dayIndex) => (
                         <React.Fragment key={`events-day-${dayIndex}`}>
                             {eventsByDay[dayIndex]?.map((event, eventIndex) => {
                                 const eventStyle = getEventStyle(event, dayIndex);
-                                
-                                // Format time for display
                                 const startTime = format(event.start, 'HH:mm');
                                 const endTime = format(event.end, 'HH:mm');
                                 const timeDisplay = event.allDay ? 'Toute la journée' : `${startTime} - ${endTime}`;
@@ -183,7 +168,6 @@ const WeeklyGridView = ({ currentDate, events }) => {
     );
 };
 
-// Custom Toolbar
 const CustomToolbar = (toolbar) => {
     const goToBack = () => toolbar.onNavigate('PREV');
     const goToNext = () => toolbar.onNavigate('NEXT');
@@ -252,11 +236,8 @@ const MiniCalendarComponentWrapper = ({ selectedDate, onDateChange }) => {
     );
 };
 
-/**
- * CalendarPage component avec chargement depuis le backend
- */
 const CalendarPage = () => {
-    const [events, setEvents] = useState([]); // Vide au départ - chargement depuis le backend
+    const [events, setEvents] = useState([]);
     const [miniCalendarDate, setMiniCalendarDate] = useState(new Date());
     const [view, setView] = useState('week');
     const [isAgendaView, setIsAgendaView] = useState(false);
@@ -265,7 +246,6 @@ const CalendarPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Charger les événements depuis le backend au montage du composant
     useEffect(() => {
         loadEvents();
     }, []);
@@ -274,9 +254,8 @@ const CalendarPage = () => {
         setLoading(true);
         setError(null);
         try {
-            const eventsData = await getAllEvents(); // Appel au backend
+            const eventsData = await getAllEvents();
             
-            // Convertir les strings ISO en objets Date et ajouter des couleurs
             const formattedEvents = eventsData.map((event, index) => {
                 const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
                 const color = colors[index % colors.length];
@@ -299,23 +278,19 @@ const CalendarPage = () => {
         }
     };
 
-    // Fonction pour ouvrir le formulaire
     const openEventForm = (selectedStart = null, selectedEnd = null) => {
         const now = new Date();
         const start = selectedStart || now;
         const end = selectedEnd || new Date(start.getTime() + 60 * 60 * 1000);
         
-        // Forcer un re-render du formulaire
         setFormKey(prev => prev + 1);
         setIsModalOpen(true);
     };
 
-    // Gestion du clic sur un créneau
     const handleSelectSlot = ({ start, end }) => {
         openEventForm(start, end);
     };
 
-    // Bouton rapide d'ajout
     const handleQuickAdd = () => {
         const now = new Date();
         const start = new Date(miniCalendarDate);
@@ -323,13 +298,10 @@ const CalendarPage = () => {
         openEventForm(start);
     };
 
-    // Sauvegarde d'un événement VERS LE BACKEND
     const handleSaveEvent = async (newEventData) => {
         try {
-            // Envoyer l'événement au backend
             const savedEvent = await createEvent(newEventData);
             
-            // Ajouter la couleur et convertir les dates
             const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#EC4899'];
             const color = colors[events.length % colors.length];
             
@@ -341,7 +313,6 @@ const CalendarPage = () => {
                 resource: savedEvent.resource || 'Personnel'
             };
             
-            // Ajouter le nouvel événement à la liste
             setEvents(prevEvents => [...prevEvents, eventWithDates]);
             setIsModalOpen(false);
         } catch (err) {
@@ -350,7 +321,6 @@ const CalendarPage = () => {
         }
     };
 
-    // Gestion du clic sur un événement
     const handleSelectEvent = (event) => {
         if (window.confirm(`Voulez-vous modifier l'événement "${event.title}" ?`)) {
             openEventForm(event.start, event.end);
@@ -370,7 +340,6 @@ const CalendarPage = () => {
         return {};
     };
 
-    // Custom event style pour react-big-calendar
     const eventStyleGetter = (event) => {
         const backgroundColor = event.color || '#3B82F6';
         return {
@@ -385,7 +354,6 @@ const CalendarPage = () => {
         };
     };
 
-    // Afficher un loader pendant le chargement
     if (loading) {
         return (
             <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -397,7 +365,6 @@ const CalendarPage = () => {
         );
     }
 
-    // Afficher un message d'erreur si le chargement échoue
     if (error) {
         return (
             <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -419,7 +386,6 @@ const CalendarPage = () => {
     return (
         <div className="h-screen flex flex-col bg-gray-50">
             <div className="p-6 flex-1 overflow-hidden">
-                {/* Header section */}
                 <div className="flex items-center justify-between pb-6">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Calendriers</h1>
@@ -445,9 +411,7 @@ const CalendarPage = () => {
                     </div>
                 </div>
 
-                {/* Main Content: Sidebar and Calendar */}
                 <div className="flex flex-1 min-h-0 gap-4">
-                    {/* Left Sidebar */}
                     <div className="w-1/4 flex flex-col">
                         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-4">
                             <button
@@ -466,7 +430,6 @@ const CalendarPage = () => {
                                 onDateChange={setMiniCalendarDate} 
                             />
                             
-                            {/* Liste des événements à venir */}
                             <div className="mt-6">
                                 <h3 className="font-semibold text-gray-700 mb-3">Événements à venir ({events.filter(e => e.start >= new Date()).length})</h3>
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -507,8 +470,7 @@ const CalendarPage = () => {
                         </div>
                     </div>
 
-                    {/* Right Calendar View */}
-                    <div className="w-3/4 flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden relative">
+                    <div className="w-3/4 flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden relative" style={{ minHeight: '1000px' }}>
                         {isAgendaView ? (
                             <AgendaListView events={events} currentDate={miniCalendarDate} />
                         ) : (
@@ -552,7 +514,6 @@ const CalendarPage = () => {
                                     />
                                 )}
                                 
-                                {/* Floating Add Button */}
                                 <button
                                     className="absolute bottom-6 right-6 w-14 h-14 flex items-center justify-center bg-blue-500 rounded-full text-white shadow-lg hover:bg-blue-600 transition-colors z-10"
                                     onClick={handleQuickAdd}
@@ -565,7 +526,6 @@ const CalendarPage = () => {
                 </div>
             </div>
             
-            {/* Event Creation Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}

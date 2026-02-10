@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Clock, Calendar, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { createEvent } from '../../api/eventAPI';
 
 // Composant pour les inputs de date/heure
 const DateTimeInput = ({ date, type, onChange, allDay = false, label }) => {
@@ -126,9 +125,9 @@ const EventForm = ({ onSave, onCancel }) => {
             setError('La date de fin doit être après la date de début');
             return;
         }
-
+    
         setIsLoading(true);
-
+    
         // Formater les dates pour l'API
         const eventData = {
             title: title.trim(),
@@ -137,14 +136,16 @@ const EventForm = ({ onSave, onCancel }) => {
             end: end.toISOString(),
             allDay: allDay,
         };
-
+    
         try {
-            const newEvent = await createEvent(eventData);
-            onSave(newEvent);
+            // SUPPRIMER cet appel :
+            // const newEvent = await createEvent(eventData);
+            
+            // À LA PLACE, passer les données au parent
+            onSave(eventData); // ← Le parent (CalendarPage) fera l'appel API
         } catch (err) {
             console.error("Failed to create event:", err);
             setError(err.message || err.response?.data?.message || 'Erreur lors de la création de l\'événement.');
-        } finally {
             setIsLoading(false);
         }
     };

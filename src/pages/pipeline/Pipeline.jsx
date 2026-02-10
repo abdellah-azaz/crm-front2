@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { leadAPI } from '../../api/leadAPI'
 import pipelineAPI from '../../api/pipelineAPI'
 
@@ -19,6 +19,9 @@ const Pipeline = () => {
   const [availableLeads, setAvailableLeads] = useState([])
   const [searchLeadTerm, setSearchLeadTerm] = useState('')
   const [addingLead, setAddingLead] = useState(false)
+  const [draggedLead, setDraggedLead] = useState(null)
+  const [dragOverStage, setDragOverStage] = useState(null)
+  const [movingLead, setMovingLead] = useState(false)
 
   // Charger les pipelines
   useEffect(() => {
@@ -268,6 +271,119 @@ const Pipeline = () => {
     }
   }
 
+  // Fonction pour déplacer un lead entre les stages
+  const handleMoveLeadBetweenStages = async (pipelineName, leadEmail, fromStageName, toStageName) => {
+    if (!pipelineName || !leadEmail || !fromStageName || !toStageName) {
+      console.error('Paramètres manquants pour le déplacement du lead')
+      return
+    }
+
+    if (fromStageName === toStageName) {
+      console.log('Le lead est déjà dans ce stage')
+      return
+    }
+
+    try {
+      setMovingLead(true)
+      
+      console.log(`Déplacement du lead ${leadEmail} de "${fromStageName}" vers "${toStageName}"`)
+      
+      const result = await pipelineAPI.moveLeadBetweenStages(
+        pipelineName,
+        leadEmail,
+        fromStageName,
+        toStageName
+      )
+      
+      console.log('Lead déplacé avec succès:', result)
+      
+      // Rafraîchir les pipelines
+      fetchPipelines()
+      
+    } catch (error) {
+      console.error('Erreur lors du déplacement du lead:', error)
+      alert(`Erreur lors du déplacement du lead: ${error.response?.data?.message || error.message}`)
+    } finally {
+      setMovingLead(false)
+    }
+  }
+
+  // Handlers pour le drag & drop
+  const handleDragStart = (e, pipelineName, stageName, lead) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      pipelineName,
+      stageName,
+      leadEmail: lead.email,
+      leadName: lead.name || lead.email
+    }))
+    e.dataTransfer.effectAllowed = 'move'
+    setDraggedLead({
+      pipelineName,
+      stageName,
+      leadEmail: lead.email,
+      leadName: lead.name || lead.email
+    })
+  }
+
+  const handleDragOver = (e, stageName) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverStage(stageName)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    setDragOverStage(null)
+  }
+
+  const handleDrop = async (e, pipelineName, toStageName) => {
+    e.preventDefault()
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('text/plain'))
+      
+      if (!dragData || !dragData.pipelineName || !dragData.stageName || !dragData.leadEmail) {
+        console.error('Données de drag invalides')
+        return
+      }
+
+      // Vérifier que le drop est dans le même pipeline
+      if (dragData.pipelineName !== pipelineName) {
+        alert('Vous ne pouvez déplacer un lead que dans le même pipeline')
+        return
+      }
+
+      // Vérifier que le lead n'est pas déplacé dans le même stage
+      if (dragData.stageName === toStageName) {
+        console.log('Le lead est déjà dans ce stage')
+        return
+      }
+
+      // Confirmation utilisateur
+      const confirmMove = window.confirm(
+        `Déplacer le lead "${dragData.leadName}" du stage "${dragData.stageName}" vers "${toStageName}" ?`
+      )
+
+      if (!confirmMove) {
+        return
+      }
+
+      // Appeler l'API pour déplacer le lead
+      await handleMoveLeadBetweenStages(
+        pipelineName,
+        dragData.leadEmail,
+        dragData.stageName,
+        toStageName
+      )
+
+    } catch (error) {
+      console.error('Erreur lors du drop:', error)
+    } finally {
+      setDraggedLead(null)
+      setDragOverStage(null)
+    }
+  }
+
   // Filtre les leads en fonction du terme de recherche
   const filteredLeads = useMemo(() => {
     if (!searchLeadTerm.trim()) return availableLeads
@@ -306,13 +422,23 @@ const Pipeline = () => {
           {pipeline.stages.map((stage, stageIndex) => {
             const stageKey = `${pipeline.name}-${stage.name}`
             const isDeleting = deletingStages[stageKey]
+            const isDragOver = dragOverStage === stage.name && draggedLead?.stageName !== stage.name
             
             return (
               <div 
                 key={stageIndex} 
-                className="flex-shrink-0 w-80 bg-gray-50 rounded-lg border border-gray-200 relative"
+                className={`flex-shrink-0 w-80 rounded-lg border relative transition-all duration-200 ${
+                  isDragOver 
+                    ? 'border-blue-500 bg-blue-50 shadow-lg' 
+                    : 'border-gray-200 bg-gray-50'
+                }`}
+                onDragOver={(e) => handleDragOver(e, stage.name)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, pipeline.name, stage.name)}
               >
-                <div className="p-4 border-b border-gray-200 bg-gray-100 rounded-t-lg">
+                <div className={`p-4 border-b rounded-t-lg ${
+                  isDragOver ? 'border-blue-500 bg-blue-100' : 'border-gray-200 bg-gray-100'
+                }`}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center">
                       <h3 className="font-semibold text-gray-800">
@@ -359,47 +485,77 @@ const Pipeline = () => {
                   </div>
                   
                   {stage.leads && stage.leads.length > 0 ? (
-                    stage.leads.map((lead, leadIndex) => (
-                      <div 
-                        key={lead._id} 
-                        className="bg-white mb-2 p-3 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow duration-150"
-                      >
-                        <div className="flex items-start">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 text-sm">
-                              {lead.name || 'Sans nom'}
-                            </h4>
-                            {lead.email && (
-                              <p className="text-xs text-gray-600 mt-1">{lead.email}</p>
-                            )}
-                            {lead.phone && (
-                              <p className="text-xs text-gray-500 mt-1">{lead.phone}</p>
-                            )}
-                            {lead.company && (
-                              <p className="text-xs text-gray-500 mt-1">{lead.company}</p>
-                            )}
-                            {lead.info && Object.keys(lead.info).length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-100">
-                                <p className="text-xs font-medium text-gray-500 mb-1">Infos:</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {Object.entries(lead.info).map(([key, value]) => (
-                                    <span 
-                                      key={key} 
-                                      className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded"
-                                    >
-                                      {key}: {value}
-                                    </span>
-                                  ))}
-                                </div>
+                    stage.leads.map((lead, leadIndex) => {
+                      const isLeadDragged = draggedLead?.leadEmail === lead.email
+                      
+                      return (
+                        <div 
+                          key={lead._id} 
+                          draggable="true"
+                          onDragStart={(e) => handleDragStart(e, pipeline.name, stage.name, lead)}
+                          className={`mb-2 p-3 rounded-lg border transition-all duration-150 cursor-move ${
+                            isLeadDragged 
+                              ? 'opacity-50 border-blue-300 bg-blue-50' 
+                              : 'bg-white border-gray-200 hover:shadow-md hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center">
+                                <svg 
+                                  className="h-4 w-4 text-gray-400 mr-2" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24" 
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"></path>
+                                </svg>
+                                <h4 className="font-medium text-gray-900 text-sm">
+                                  {lead.name || 'Sans nom'}
+                                </h4>
                               </div>
-                            )}
+                              {lead.email && (
+                                <p className="text-xs text-gray-600 mt-1">{lead.email}</p>
+                              )}
+                              {lead.phone && (
+                                <p className="text-xs text-gray-500 mt-1">{lead.phone}</p>
+                              )}
+                              {lead.company && (
+                                <p className="text-xs text-gray-500 mt-1">{lead.company}</p>
+                              )}
+                              {lead.info && Object.keys(lead.info).length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                  <p className="text-xs font-medium text-gray-500 mb-1">Infos:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {Object.entries(lead.info).map(([key, value]) => (
+                                      <span 
+                                        key={key} 
+                                        className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded"
+                                      >
+                                        {key}: {value}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    })
                   ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      <p className="text-sm">Aucun lead dans ce stage</p>
+                    <div className={`text-center py-8 rounded-lg border-2 border-dashed ${
+                      isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-gray-50'
+                    }`}>
+                      <p className="text-sm text-gray-400">
+                        {isDragOver ? 'Déposez le lead ici' : 'Aucun lead dans ce stage'}
+                      </p>
+                      {isDragOver && (
+                        <p className="text-xs text-blue-500 mt-2">
+                          Déplacer {draggedLead?.leadName}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -462,6 +618,18 @@ const Pipeline = () => {
             Create Sales Pipeline
           </button>
         </div>
+        
+        {/* Indicateur de drag & drop */}
+        {draggedLead && (
+          <div className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+              </svg>
+              <span>Déplacer {draggedLead.leadName} vers un autre stage</span>
+            </div>
+          </div>
+        )}
         
         {/* Liste des pipelines existants */}
         {loadingPipelines ? (
